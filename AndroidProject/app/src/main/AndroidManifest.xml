@@ -4,6 +4,9 @@
     <!--인터넷 권한-->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- 외부 저장소 권한 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
     <!--진동 기능 권한-->
     <uses-permission android:name="android.permission.VIBRATE"/>
 
@@ -21,6 +24,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication1"
+        android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="31">
 
         <!-- 첫 번째 Activity -->

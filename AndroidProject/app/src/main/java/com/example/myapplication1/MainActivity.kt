@@ -25,13 +25,15 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.http.*
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var previewView: PreviewView
     private lateinit var imageCapture: ImageCapture
     private val frameCaptureInterval: Long = 1000 // 프레임 캡처 주기 (1초)
-    private val outputFramePath = "/path/to/output/frame_%03d.jpg" // 프레임 이미지 파일이 저장될 디렉토리의 기본 경로(변경해야 함)
+    private val outputFramePath: String
+        get() = "${getFilesDir().absolutePath}/frames/frame_%03d.jpg" // 내부 저장소 경로
     private val handler = Handler()
     private var frameCount = 0
 
@@ -86,7 +88,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun captureImage() {
-        val photoFile = File(outputFramePath.replace("%03d", String.format("%03d", frameCount++))) // 현재 프레임 번호를 기반으로 파일 이름 생성
+        val framesDir = File("${getFilesDir().absolutePath}/frames")
+        if (!framesDir.exists()) {
+            framesDir.mkdirs() // 디렉토리가 없으면 생성
+        }
+
+        val photoFile = File(framesDir, String.format("frame_%03d.jpg", frameCount++)) // 파일 이름 생성
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
         imageCapture.takePicture(outputOptions, ContextCompat.getMainExecutor(this), object : ImageCapture.OnImageSavedCallback {
@@ -95,12 +102,11 @@ class MainActivity : AppCompatActivity() {
                 uploadImage(photoFile) // 이미지 업로드 호출
             }
 
-            override fun onError(exception: ImageCaptureException) { // ImageCaptureException 사용
+            override fun onError(exception: ImageCaptureException) {
                 Log.e("CameraX", "Error saving image: ${exception.message}")
             }
         })
     }
-
 
     // Retrofit 인터페이스 설정
     interface ApiService {
@@ -120,7 +126,7 @@ class MainActivity : AppCompatActivity() {
             .build()
 
         Retrofit.Builder()
-            .baseUrl("http://your-server-address:8000/")  // 서버 주소
+            .baseUrl("http://10.101.7.159:8000/")  // 서버 주소
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -133,13 +139,32 @@ class MainActivity : AppCompatActivity() {
     // JPG 파일을 전송하는 함수
     private fun uploadImage(imageFile: File) {
         val requestFile = imageFile.asRequestBody("image/jpeg".toMediaType())
-        val body = MultipartBody.Part.createFormData("image", imageFile.name, requestFile)
+        val body = MultipartBody.Part.createFormData("file", imageFile.name, requestFile)
 
         val call = service.uploadImage(body)
         call.enqueue(object : Callback<ResponseBody> {
             override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
                 if (response.isSuccessful) {
-                    Log.d("Upload", "Image uploaded successfully!")
+                    val responseBody = response.body()?.string() // 응답 본문을 문자열로 변환
+                    Log.d("Upload", "Image uploaded successfully! Response: $responseBody")
+
+                    // JSON 응답을 파싱하는 로직 추가
+                    try {
+                        val jsonObject = JSONObject(responseBody)
+                        val objectsArray = jsonObject.getJSONArray("objects")
+
+                        // 탐지된 객체를 로그에 출력
+                        for (i in 0 until objectsArray.length()) {
+                            val detectedObject = objectsArray.getJSONObject(i)
+                            val objectClass = detectedObject.getString("class")
+                            val confidence = detectedObject.getDouble("confidence")
+                            val bbox = detectedObject.getJSONArray("bbox")
+
+                            Log.d("Detected Object", "Class: $objectClass, Confidence: $confidence, BBox: $bbox")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("Upload", "Error parsing JSON response: ${e.message}")
+                    }
                 } else {
                     Log.e("Upload", "Upload failed with code: ${response.code()}")
                 }
