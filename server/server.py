@@ -1,54 +1,43 @@
-import socket
-import numpy as np
+from fastapi import FastAPI, UploadFile, File
 import cv2
+import numpy as np
+import struct
+import pickle
+from PIL import Image
+import io
+# uvicorn main:app --reload
+# main은 파일 이름 (예: 파일 이름이 main.py이면 main).
+# app은 FastAPI 애플리케이션 객체 이름입니다.
 
-# 서버 설정
-HOST = '0.0.0.0'  # 모든 네트워크 인터페이스에서 연결을 허용
-PORT = 8000       # 사용할 포트 번호
+app = FastAPI()
 
-# 소켓 생성 및 바인드
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind((HOST, PORT))
-server_socket.listen(5)
-print("서버가 클라이언트 연결을 기다리는 중...")
+# 루트 경로 확인을 위한 엔드포인트
+@app.get("/")
+def read_root():
+    return {"message": "FastAPI Image Processing Server is running!"}
 
-# 클라이언트가 연결되면 데이터 수신
-conn, addr = server_socket.accept()
-print(f"{addr}와 연결되었습니다.")
+# 이미지 처리 엔드포인트
+@app.post("/process-image/")
+async def process_image(file: UploadFile = File(...)):
+    # 업로드된 파일을 메모리에서 읽어들이기
+    contents = await file.read()
+    
+    # 이미지 파일을 OpenCV 형식으로 변환
+    np_array = np.frombuffer(contents, np.uint8)
+    image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
 
-# 데이터 수신 및 YOLO 처리 반복
-while True:
-    data = b""
-    payload_size = struct.calcsize("L")
-    
-    while len(data) < payload_size:
-        data += conn.recv(4096)
-    
-    packed_msg_size = data[:payload_size]
-    data = data[payload_size:]
-    msg_size = struct.unpack("L", packed_msg_size)[0]
-    
-    while len(data) < msg_size:
-        data += conn.recv(4096)
-    
-    frame_data = data[:msg_size]
-    data = data[msg_size:]
-    
-    # 받은 데이터를 이미지로 변환
-    frame = np.frombuffer(frame_data, dtype=np.uint8)
-    frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
-    
-    # YOLO 모델로 이미지 처리 (예시 코드)
-    # 여기서 YOLO 모델을 불러와 frame을 처리하면 됨
-    # 처리된 결과는 processed_frame이라 가정
-    
-    # OpenCV로 이미지 보여주기
-    cv2.imshow('Received Image', frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    # OpenCV로 받은 이미지를 처리 (예: 간단한 전처리나 가공)
+    # 여기에 YOLO 모델 등을 적용 가능
+    processed_image = process_with_yolo(image)
 
-    # YOLO 처리 결과를 클라이언트로 전송
-    # conn.sendall(processed_result)
-    
-conn.close()
-server_socket.close()
+    # 결과를 JSON 형식으로 반환 (예시: 이미지 크기 반환)
+    return {"message": "Image processed", "width": processed_image.shape[1], "height": processed_image.shape[0]}
+
+def process_with_yolo(image):
+    """
+    여기에 YOLO 모델을 적용하여 이미지를 처리하는 함수를 추가할 수 있습니다.
+    예시로 이미지를 그대로 반환하는 함수입니다.
+    """
+    # YOLO 모델 처리 코드 추가
+    # 결과 처리 후 원하는 데이터를 반환
+    return image  # 현재는 처리 없이 그대로 반환
