@@ -126,7 +126,9 @@ class MainActivity : AppCompatActivity() {
             .build()
 
         Retrofit.Builder()
-            .baseUrl("http://10.101.7.159:8000/")  // 서버 주소
+//            .baseUrl("http://10.101.7.159:8000/")  // 서버 주소
+//            .baseUrl("http://${BuildConfig.SERVER_IP}/")  // 서버 IP를 사용하여 URL 구성
+            .baseUrl("http://서버 IP 작성")  // 서버 IP를 사용하여 URL 구성
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

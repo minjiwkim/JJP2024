@@ -7,12 +7,22 @@ android {
     namespace = "com.example.myapplication1"
     compileSdk = 34
 
+    // local.properties 파일에서 환경 변수 불러오기
+    val serverIp: String = if (project.hasProperty("SERVER_IP")) {
+        project.property("SERVER_IP") as String
+    } else {
+        "127.0.0.1"  // 기본값 설정 (로컬 IP)
+    }
+
     defaultConfig {
         applicationId = "com.example.myapplication1"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+
+        // 서버 IP를 BuildConfig에 추가
+        buildConfigField("String", "SERVER_IP", "\"$serverIp\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
